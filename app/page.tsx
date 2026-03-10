@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FlapDisplay, Presets } from "react-split-flap-effect";
 import Image from "next/image";
 import CompassDial from "./components/CompassDial";
 import FlightMap from "./components/FlightMap";
+import { FlapDisplay, Presets } from "./components/FlapDisplay";
 
 type NearestFlight = {
   icao24: string;
