@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import CompassDial from "./components/CompassDial";
-import FlightMap from "./components/FlightMap";
+
+const FlightMap = dynamic(() => import("./components/FlightMap"), { ssr: false });
 import { FlapDisplay, Presets } from "./components/FlapDisplay";
 
 type NearestFlight = {
@@ -40,7 +42,7 @@ type NearbyFlightResponse = {
   error?: string;
 };
 
-const API_CALL_INTERVAL_MS = 30_000;
+const DEFAULT_POLL_INTERVAL_MS = 30_000;
 const USE_MOCK_FLIGHT_DATA = false;
 const DING_DONG_AUDIO_SRC = encodeURI("/Airplane Ding Dong Sound Effect [Cll_UdGiOCE].webm");
 const DING_DONG_VOLUME = 0.25;
@@ -283,6 +285,7 @@ type FlightSidebarProps = {
   lastUpdated: string | null;
   selectionUpdatedAt: string | null;
   targetPollMs: number;
+  onPollIntervalChange: (ms: number) => void;
   compassStatus: string;
   deviceHeadingDegrees: number;
   headingMode: "manual" | "compass";
@@ -305,6 +308,7 @@ function FlightSidebar({
   lastUpdated,
   selectionUpdatedAt,
   targetPollMs,
+  onPollIntervalChange,
   compassStatus,
   deviceHeadingDegrees,
   headingMode,
@@ -314,11 +318,6 @@ function FlightSidebar({
   onCompassDialChange,
   relativeArrow,
 }: FlightSidebarProps) {
-  const lastContactLabel = new Date(flight.lastContact * 1000).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-
   return (
     <aside className="h-full rounded-r-2xl border border-emerald-300/20 border-l-0 bg-[#0f1f17]/96 p-0 shadow-[0_20px_50px_rgba(0,0,0,0.45)] overflow-y-auto">
       <div className="border-b border-slate-600/40 bg-linear-to-r from-[#163122] via-[#12281d] to-[#0e1f16] px-4 pb-3 pt-4">
@@ -348,10 +347,6 @@ function FlightSidebar({
             ) : null}
             <p className="text-sm font-semibold text-slate-100">{flight.airlineName ?? "Unknown airline"}</p>
           </div>
-        </div>
-
-        <div className="mt-3 text-xl font-semibold tracking-wide text-emerald-300">
-          <span>{flight.callsign}</span>
         </div>
       </div>
 
@@ -390,16 +385,7 @@ function FlightSidebar({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 border-t border-slate-700/60 text-center">
-          <div className="border-r border-slate-700/60 px-3 py-2">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-slate-400">Last Contact</p>
-            <p className="text-3xl font-semibold text-slate-100">{lastContactLabel}</p>
-          </div>
-          <div className="px-3 py-2">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-slate-400">Refresh</p>
-            <p className="text-3xl font-semibold text-slate-100">{(targetPollMs / 1000).toFixed(0)}s</p>
-          </div>
-        </div>
+
       </div>
 
       <div className="px-3 py-3">
@@ -408,7 +394,7 @@ function FlightSidebar({
             <span className="font-semibold uppercase tracking-wide text-slate-400">Aircraft Type</span>
             <span className="text-emerald-300">{flight.airlineCode ?? "N/A"}</span>
           </div>
-          <FlapText value={flight.aircraftModel ?? "Unknown Aircraft"} className="radio-flap radio-flap-title" />
+          <span className="text-base font-semibold text-slate-100">{flight.aircraftModel ?? "Unknown Aircraft"}</span>
         </div>
 
         <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
@@ -439,20 +425,30 @@ function FlightSidebar({
           onClick={onToggleDetails}
           className="mt-3 w-full rounded-sm border border-emerald-300/35 bg-[#2c6247] px-4 py-2 text-base font-semibold text-slate-100 transition hover:bg-[#367557]"
         >
-          {showDetails ? "Less Flight Information" : "More Flight Information"}
+          Settings
         </button>
       </div>
 
       {showDetails ? (
         <div className="mx-3 mb-3 space-y-2 border border-slate-700/60 bg-[#1c222b] p-3 text-xs text-slate-200">
-          <p>{`Status: ${status}`}</p>
-          {error ? <p className="text-emerald-300">{`Error: ${error}`}</p> : null}
-          <p>{`Last refresh: ${lastUpdated ? new Date(lastUpdated).toLocaleTimeString() : "n/a"}`}</p>
-          <p>{`Selection refresh: ${selectionUpdatedAt ? new Date(selectionUpdatedAt).toLocaleTimeString() : "n/a"}`}</p>
-          <p>{`Compass: ${compassStatus}`}</p>
-          <div className="pt-1">{relativeArrow}</div>
-
           <div className="rounded-md border border-slate-700/60 bg-[#151a22] p-2">
+            <p className="mb-1.5 text-[11px] uppercase tracking-wide text-slate-400">Refresh Interval</p>
+            <div className="mb-3 flex flex-wrap gap-1.5">
+              {([20_000, 30_000, 45_000, 60_000, 120_000, 300_000] as const).map((ms) => (
+                <button
+                  key={ms}
+                  type="button"
+                  onClick={() => onPollIntervalChange(ms)}
+                  className={`rounded px-2 py-0.5 text-xs font-semibold transition ${
+                    targetPollMs === ms
+                      ? "bg-emerald-600 text-white"
+                      : "border border-slate-600 bg-[#0f141b] text-slate-300 hover:bg-[#1c2430]"
+                  }`}
+                >
+                  {ms < 60_000 ? `${ms / 1000}s` : `${ms / 60_000}m`}
+                </button>
+              ))}
+            </div>
             <CompassDial
               headingDegrees={deviceHeadingDegrees}
               onHeadingChange={onCompassDialChange}
@@ -488,7 +484,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [selectionUpdatedAt, setSelectionUpdatedAt] = useState<string | null>(null);
-  const targetPollMs = API_CALL_INTERVAL_MS;
+  const [targetPollMs, setTargetPollMs] = useState(DEFAULT_POLL_INTERVAL_MS);
   const locationRef = useRef<UserLocation | null>(null);
   const hasFetchedInitialFlightRef = useRef(false);
   const targetFlightKeyRef = useRef<string | null>(null);
@@ -645,10 +641,10 @@ export default function Home() {
       }
 
       void selectClosestFlight(currentLocation);
-    }, API_CALL_INTERVAL_MS);
+    }, targetPollMs);
 
     return () => window.clearInterval(intervalId);
-  }, []);
+  }, [targetPollMs]);
 
   useEffect(() => {
     function handleDeviceOrientation(event: DeviceOrientationEvent): void {
@@ -793,11 +789,11 @@ export default function Home() {
 
               <div className="absolute bottom-3 left-1/2 z-1500 flex -translate-x-1/2 items-center gap-4 rounded-md border border-emerald-400/30 bg-[#07170f]/90 px-4 py-2 text-xs text-slate-100 shadow-[0_8px_24px_rgba(0,0,0,0.35)]">
                 <span className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-300" />
+                  <span className="inline-block h-3 w-3 rounded-full border-2 border-white/80 bg-[#34d399]" />
                   You
                 </span>
                 <span className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-green-500" />
+                  <span style={{ color: "#f4d24f", fontSize: "16px", lineHeight: 1 }}>✈</span>
                   Plane
                 </span>
               </div>
@@ -829,21 +825,25 @@ export default function Home() {
               </div>
             </div>
 
+            {/* Tab handle — independent of sidebar slide so it's always visible */}
+            <button
+              type="button"
+              onClick={() => setSidebarOpen((current) => !current)}
+              className={`absolute top-1/2 z-2100 -translate-y-1/2 rounded-r-md border border-slate-500/80 border-l-0 bg-[#0f141b]/95 px-2 py-6 text-[10px] uppercase tracking-[0.14em] text-slate-200 shadow-[0_8px_22px_rgba(0,0,0,0.35)] transition-[left] duration-300 ease-out ${
+                sidebarOpen ? "left-[min(340px,calc(100vw-1rem))]" : "left-0"
+              }`}
+              aria-expanded={sidebarOpen}
+              aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+            >
+              {sidebarOpen ? "◀" : "▶"}
+            </button>
+
+            {/* Sidebar panel — slides fully off-screen when closed */}
             <div
-              className={`absolute bottom-2 left-2 top-2 z-2000 w-[min(340px,calc(100vw-1rem))] max-w-85 overflow-visible transition-transform duration-300 ease-out ${
-                sidebarOpen ? "translate-x-0" : "translate-x-[calc(-100%+10px)]"
+              className={`absolute bottom-2 left-0 top-2 z-2000 w-[min(340px,calc(100vw-1rem))] overflow-hidden transition-transform duration-300 ease-out ${
+                sidebarOpen ? "translate-x-0" : "-translate-x-full"
               }`}
             >
-              <button
-                type="button"
-                onClick={() => setSidebarOpen((current) => !current)}
-                className="absolute -right-10 top-1/2 z-2100 -translate-y-1/2 rounded-r-md border border-slate-500/80 border-l-0 bg-[#0f141b]/95 px-2 py-6 text-[10px] uppercase tracking-[0.14em] text-slate-200 shadow-[0_8px_22px_rgba(0,0,0,0.35)]"
-                aria-expanded={sidebarOpen}
-                aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-              >
-                {sidebarOpen ? "close" : "open"}
-              </button>
-
               <FlightSidebar
                 flight={flight}
                 airlineLogoUrl={airlineLogoUrl}
@@ -856,6 +856,7 @@ export default function Home() {
                 lastUpdated={lastUpdated}
                 selectionUpdatedAt={selectionUpdatedAt}
                 targetPollMs={targetPollMs}
+                onPollIntervalChange={setTargetPollMs}
                 compassStatus={compassStatus}
                 deviceHeadingDegrees={deviceHeadingDegrees}
                 headingMode={headingMode}
