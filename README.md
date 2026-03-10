@@ -1,36 +1,41 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Planet Tracker
+
+Live dashboard that:
+
+- Automatically gets your location in the browser
+- Selects the nearest flight every 1 minute
+- Updates the selected flight once per minute
+- Shows a clean always-visible summary: callsign, arrival, departure, distance, geometric altitude
+- Shows flight direction relative to the direction your device is facing
 
 ## Getting Started
 
-First, run the development server:
+Run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Allow geolocation access when prompted so nearest-flight tracking can work.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Features
 
-## Learn More
+- Auto nearest-flight lock based on your current coordinates
+- Nearest-flight selection cadence set to once per minute
+- Selected flight updates on the same 1-minute cadence
+- Split-flap display for departure airport using `react-split-flap-effect`
+- Toggleable section for additional flight details
+- Direction awareness: manual heading or device compass mode with relative flight direction
 
-To learn more about Next.js, take a look at the following resources:
+## Data Source Notes
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Flight state data is fetched through `flightradarapi` via the server route at `app/api/nearby-flight/route.ts`.
+- Origin/destination and airline are best-effort enrichments and may be `n/a` for some aircraft.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Tech Stack
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Next.js App Router
+- TypeScript
+- Tailwind CSS
